@@ -9,11 +9,13 @@ document
       'input[name="position"]:checked'
     ).value;
 
+    // Validate image dimensions, size, and type
+    if (!validateImage(fileInput.files[0])) return;
+
     formData.append('image', fileInput.files[0]);
     formData.append('position', position); // Add the position metadata
 
-    // Upload logic here - you can use fetch or another library to send this to your backend or Azure Function
-    postData(formData);
+    await postData(formData);
   });
 
 async function postData(formData) {
@@ -27,8 +29,66 @@ async function postData(formData) {
     if (!response.ok) {
       throw new Error(`Response status: ${response.status}`);
     }
-    console.error('Successfully posted data.');
+    // Success message
+    message('Image uploaded successfully!', 'success');
   } catch (error) {
     console.error(error.message);
+    // Display error message
+    message(error.message, 'error');
   }
+}
+
+function validateImage(file) {
+  // Check file size (1MB limit)
+  if (file.size > 1 * 1024 * 1024) {
+    //alert('File size must be less than 1 MB.');
+    message('File size must be less than 1 MB.', 'error');
+    return false;
+  }
+
+  // Check file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'];
+  if (!allowedTypes.includes(file.type)) {
+    //alert('Invalid file type. Please upload a JPEG, PNG, TIFF, or BMP.');
+    message(
+      'Invalid file type. Please upload a JPEG, PNG, TIFF, or BMP.',
+      'error'
+    );
+    return false;
+  }
+
+  // Check dimensions
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+
+  // Use a promise to handle the image load event
+  return new Promise((resolve) => {
+    img.onload = () => {
+      if (img.width != 250 || img.height != 250) {
+        //alert('Image dimensions must be 250x250 pixels.');
+        message('Image dimensions must be 250x250 pixels.', 'error');
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    };
+  });
+}
+
+function message(message, type) {
+  let messageContainer;
+
+  if (type === 'success') {
+    messageContainer = document.getElementById('successMessage');
+  } else if (type === 'error') {
+    messageContainer = document.getElementById('errorMessage');
+  }
+
+  // Append the new message as a new line
+  messageContainer.innerHTML += `<div>${message}</div>`;
+
+  // Clear messages after 8 seconds
+  setTimeout(() => {
+    messageContainer.innerHTML = '';
+  }, 10000);
 }
