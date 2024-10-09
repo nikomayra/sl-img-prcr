@@ -1,3 +1,12 @@
+// Load in NSFW filter upfront
+let model;
+window.onload = async () => {
+  model = await nsfwjs.load('../public/filter_model/model.json');
+  console.log('Model Loaded');
+};
+
+// ---------------------------------------
+
 document
   .getElementById('uploadForm')
   .addEventListener('submit', async function (event) {
@@ -9,7 +18,12 @@ document
       'input[name="position"]:checked'
     ).value;
 
-    // Validate image dimensions, size, and type
+    if (!fileInput.files || fileInput.files.length === 0) {
+      message('Please add an image file.', 'error');
+      return;
+    }
+
+    // Validate image dimensions, size, type and content
     if (!validateImage(fileInput.files[0])) return;
 
     formData.append('image', fileInput.files[0]);
@@ -57,19 +71,31 @@ function validateImage(file) {
     return false;
   }
 
-  // Check dimensions
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-
-  // Use a promise to handle the image load event
   return new Promise((resolve) => {
-    img.onload = () => {
-      if (img.width != 250 || img.height != 250) {
-        //alert('Image dimensions must be 250x250 pixels.');
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+
+    img.onload = async () => {
+      console.log(`W: ${img.width} H: ${img.height}`);
+      if (img.width !== 250 || img.height !== 250) {
         message('Image dimensions must be 250x250 pixels.', 'error');
         resolve(false);
       } else {
-        resolve(true);
+        const predictions = await model.classify(img);
+        console.log('Predicitions: ', predictions);
+        const isSafe = predictions.every(
+          (p) =>
+            (p.className !== 'Porn' && p.className !== 'Hentai') ||
+            p.probability < 0.5
+        );
+
+        if (!isSafe) {
+          message('NSFW content detected. Image cannot be uploaded.', 'error');
+          resolve(false);
+        } else {
+          message('Image Validated.', 'success');
+          resolve(true); // Image is safe for upload
+        }
       }
     };
   });
