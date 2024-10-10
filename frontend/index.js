@@ -1,7 +1,7 @@
 // Load in NSFW filter upfront
 let model;
 window.onload = async () => {
-  model = await nsfwjs.load('../public/filter_model/model.json');
+  model = await nsfwjs.load('./model.json');
   console.log('Model Loaded');
 };
 
