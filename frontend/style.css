@@ -1,7 +1,66 @@
 body {
-  background-color: antiquewhite;
+  background-color: rgb(40, 40, 40);
+  color: aliceblue;
 }
 
 #title {
   text-align: center;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#description {
+  font-family: 'Courier New', Courier, monospace;
+}
+
+#file-requirements {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  /* font-weight: bold; */
+}
+
+a:link {
+  color: green;
+  background-color: transparent;
+  text-decoration: none;
+}
+a:visited {
+  color: pink;
+  background-color: transparent;
+  text-decoration: none;
+}
+a:hover {
+  color: rgb(0, 255, 234);
+  background-color: transparent;
+  text-decoration: underline;
+}
+a:active {
+  color: yellow;
+  background-color: transparent;
+  text-decoration: underline;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px; /* Space between images */
+}
+
+figure {
+  margin: 0;
+  padding: 0;
+  text-align: center; /* Center the figure caption */
+  display: table;
+}
+
+img.gallery-item {
+  width: 250px;
+  height: 250px;
+  object-fit: cover; /* Ensures images are properly contained */
+}
+
+figcaption {
+  font-size: 16px;
+  font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+  text-align: center;
+  word-wrap: break-word; /* Handle long titles */
 }

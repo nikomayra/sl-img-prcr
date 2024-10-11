@@ -1,16 +1,52 @@
-// Load in NSFW filter upfront
 let model;
+let uploading = false;
+let messages = [];
+
+// Load
 window.onload = async () => {
   model = await nsfwjs.load('./model.json');
   console.log('Model Loaded');
+  await loadGallery();
 };
 
 // ---------------------------------------
+
+async function loadGallery() {
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+
+  try {
+    const response = await fetch('http://localhost:7071/api/GetLastGifs');
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+    const imageUrls = await response.json();
+    imageUrls.forEach((url) => {
+      const fig = document.createElement('figure');
+      const img = document.createElement('img');
+      const figCap = document.createElement('figcaption');
+      const gifTitle = url.split('_')[1].replace('.gif', '').replace(/-/g, ' ');
+      figCap.innerText = gifTitle;
+      img.src = url;
+      img.alt = 'Generated GIF';
+      img.classList.add('gallery-item');
+      fig.append(img, figCap);
+      gallery.appendChild(fig);
+    });
+    console.log('Gallery Loaded');
+  } catch (error) {
+    console.error('Error loading gallery: ', error);
+  }
+}
 
 document
   .getElementById('uploadForm')
   .addEventListener('submit', async function (event) {
     event.preventDefault();
+
+    if (uploading) {
+      message('An upload is already in progress. Please wait.', 'error');
+      return;
+    }
 
     let formData = new FormData();
     let fileInput = document.getElementById('imageUpload');
@@ -29,12 +65,19 @@ document
     formData.append('image', fileInput.files[0]);
     formData.append('position', position); // Add the position metadata
 
+    uploading = true;
+    document.querySelector('button[type="submit"]').disabled = true;
+
     await postData(formData);
+
+    document.querySelector('button[type="submit"]').disabled = false;
+    uploading = false;
   });
 
 async function postData(formData) {
   const url = 'http://localhost:7071/api/PostImage';
   try {
+    message('Uploading, please wait...', 'success');
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -76,9 +119,14 @@ function validateImage(file) {
     img.src = URL.createObjectURL(file);
 
     img.onload = async () => {
-      console.log(`W: ${img.width} H: ${img.height}`);
-      if (img.width !== 250 || img.height !== 250) {
-        message('Image dimensions must be 250x250 pixels.', 'error');
+      const aspectRatio = img.width / img.height;
+      console.log(`W: ${img.width} H: ${img.height} AS: ${aspectRatio}`);
+      if (aspectRatio < 0.9 && aspectRatio > 1.1) {
+        // Allow 10% off-square images through.
+        message('Image aspect ratio must  be 1:1', 'error');
+        resolve(false);
+      } else if (img.width < 128) {
+        message('Image dimensions must be >= 128x128 pixels.', 'error');
         resolve(false);
       } else {
         const predictions = await model.classify(img);
@@ -93,7 +141,6 @@ function validateImage(file) {
           message('NSFW content detected. Image cannot be uploaded.', 'error');
           resolve(false);
         } else {
-          message('Image Validated.', 'success');
           resolve(true); // Image is safe for upload
         }
       }
@@ -101,7 +148,7 @@ function validateImage(file) {
   });
 }
 
-function message(message, type) {
+function message(msg, type) {
   let messageContainer;
 
   if (type === 'success') {
@@ -110,11 +157,19 @@ function message(message, type) {
     messageContainer = document.getElementById('errorMessage');
   }
 
-  // Append the new message as a new line
-  messageContainer.innerHTML += `<div>${message}</div>`;
+  // Maintain message history with a maximum of 4 messages
+  messages.unshift(msg); // Add the new message to the front
+  if (messages.length > 4) {
+    messages.pop(); // Remove the oldest message if limit exceeded
+  }
 
-  // Clear messages after 8 seconds
+  // Clear current messages and display updated history
+  messageContainer.innerHTML = messages
+    .map((message) => `<div>${message}</div>`)
+    .join('');
+
+  // Clear messages after seconds
   setTimeout(() => {
     messageContainer.innerHTML = '';
-  }, 10000);
+  }, 30000);
 }

@@ -13,6 +13,7 @@ var host = new HostBuilder()
         //My services
         services.AddSingleton<BlobStorageService>();
         services.AddSingleton<ImageProcessorService>();
+        services.AddSingleton<RandomTitleService>();
         // Register blob service with null check
         services.AddSingleton(x => {
             string? blobConnectionString = Environment.GetEnvironmentVariable("AZURE_STORAGE_CONNECTION_STRING");

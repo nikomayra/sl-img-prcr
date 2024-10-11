@@ -77,6 +77,7 @@ namespace sl_img_prcr.Services
             }
 
             return blobClient.Uri.ToString();
+            
         }
 
         public async Task<BlobClient?> GetBlobByPositionAsync(string position)

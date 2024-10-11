@@ -17,17 +17,16 @@ namespace sl_img_prcr.Functions
         private readonly ILogger<ProgramRoutes> _logger;
         private readonly BlobStorageService _blobStorageService;
         private readonly ImageProcessorService _imageProcessorService;
+        private readonly RandomTitleService _randomTitleService;
 
-        private const int imageWidth = 250;
-        private const int imageHeight = 250;
-
-
-        public ProgramRoutes(ILogger<ProgramRoutes> logger, BlobStorageService blobStorageService, ImageProcessorService imageProcessorService)
+        public ProgramRoutes(ILogger<ProgramRoutes> logger, BlobStorageService blobStorageService, ImageProcessorService imageProcessorService, RandomTitleService randomTitleService)
         {
             _logger = logger;
             _blobStorageService = blobStorageService;
             _imageProcessorService = imageProcessorService;
+            _randomTitleService = randomTitleService;
         }
+
 
         [Function("PostImage")]
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
@@ -49,30 +48,18 @@ namespace sl_img_prcr.Functions
                 return new BadRequestObjectResult("Image Position type unspecified or incorrect.");
             }
 
-            // Validate file size (e.g., max 1 MB)
-            if (file.Length > 1 * 1024 * 1024)
+            // Validate image file: size, aspect ratio, file type
+            var (isValid, error) = _imageProcessorService.IsValidImage(file);
+            if (!isValid)
             {
-                return new BadRequestObjectResult("File size exceeds 1 mb.");
+                return new BadRequestObjectResult(error);
             }
 
-            // Validate image file (checks MIME type and file extensions)
-            if (!_imageProcessorService.IsValidImage(file))
-            {
-                return new BadRequestObjectResult("Not allowed image file type.");
-            }
-
-             //Validate image dimensions
-            using (var imageStream = file.OpenReadStream())
-            {
-                using var image = Image.Load<Rgba32>(imageStream);
-                if (image.Width != imageWidth || image.Height != imageHeight)
-                {
-                    return new BadRequestObjectResult($"Image must be {imageWidth}x{imageHeight} pixels.");
-                }
-            }
+            //Resize image file
+            Stream fileStream = _imageProcessorService.ResizeImage250(file.OpenReadStream());
 
             // Upload file to Blob Storage
-            string blobUrl = await _blobStorageService.UploadImageAsync(file.OpenReadStream(), file.FileName, position!);
+            string blobUrl = await _blobStorageService.UploadImageAsync(fileStream, file.FileName, position!);
             
             // Attempt to create a Gif if possible
             await CreateGifIfPossible();
@@ -95,7 +82,8 @@ namespace sl_img_prcr.Functions
                 var gifStream = _imageProcessorService.CreateGifFromImages(startStream, middleStream, endStream);
                 
                 // Upload the GIF to processed images container
-                await _blobStorageService.UploadGifAsync(gifStream, "generatedGif.gif");
+                string randomTitle = _randomTitleService.GetRandomTitle();
+                await _blobStorageService.UploadGifAsync(gifStream, randomTitle + ".gif");
                 
                 // Optionally delete the original images after processing
                 await _blobStorageService.DeleteBlobAsync(startImage.Name);
@@ -104,6 +92,21 @@ namespace sl_img_prcr.Functions
             }
         }
 
+
+
+        [Function("GetLastGifs")]
+        public async Task<IActionResult> GetImages([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
+        {
+            var containerClient = _blobStorageService.GetBlobContainerClient("gifs");
+            var blobs = containerClient.GetBlobsAsync();
+            var blobUrls = new List<string>();
+            await foreach (var blob in blobs)
+            {
+                var blobClient = containerClient.GetBlobClient(blob.Name);
+                blobUrls.Add(blobClient.Uri.ToString());
+            }
+            return new OkObjectResult(blobUrls.Take(20));
+        }
     }
 
 }
