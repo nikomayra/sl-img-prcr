@@ -2,7 +2,7 @@
 
 ## Description:
 
-Serverless image processor using a Azure Function App and Azure's blob storage. Users can upload images tagged with start/middle/end from the frontend. Function App takes 3 uploaded images (randomly 1 each of start/middle/end tagged images), generates a Gif, and assigns a random title. On load of the static frontend the last 20 gifs are loaded from the server.
+Serverless image processor using a Azure Function App and Azure Blob Storage. Users can upload images tagged with start/middle/end from the frontend. The Function App takes 3 uploaded images, (if available) selects 1 each of start/middle/end tagged images randomly, generates a Gif, and assigns a random title. On load of the static frontend the last 20 gifs are loaded from the server.
 
 Just a tech demo showing some serverless image processing architecture turned into a fun little art project.
 
