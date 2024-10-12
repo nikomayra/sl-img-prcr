@@ -92,8 +92,6 @@ namespace sl_img_prcr.Functions
             }
         }
 
-
-
         [Function("GetLastGifs")]
         public async Task<IActionResult> GetImages([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
         {
@@ -105,7 +103,7 @@ namespace sl_img_prcr.Functions
                 var blobClient = containerClient.GetBlobClient(blob.Name);
                 blobUrls.Add(blobClient.Uri.ToString());
             }
-            return new OkObjectResult(blobUrls.Take(20));
+            return new OkObjectResult(blobUrls.Take(50));
         }
     }
 

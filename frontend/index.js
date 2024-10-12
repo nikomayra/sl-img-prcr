@@ -44,7 +44,7 @@ document
     event.preventDefault();
 
     if (uploading) {
-      message('An upload is already in progress. Please wait.', 'error');
+      showMessage('An upload is already in progress. Please wait.', 'error');
       return;
     }
 
@@ -55,12 +55,13 @@ document
     ).value;
 
     if (!fileInput.files || fileInput.files.length === 0) {
-      message('Please add an image file.', 'error');
+      showMessage('Please add an image file.', 'error');
       return;
     }
 
     // Validate image dimensions, size, type and content
-    if (!validateImage(fileInput.files[0])) return;
+    let isValid = await validateImage(fileInput.files[0]);
+    if (!isValid) return;
 
     formData.append('image', fileInput.files[0]);
     formData.append('position', position); // Add the position metadata
@@ -77,7 +78,7 @@ document
 async function postData(formData) {
   const url = 'http://localhost:7071/api/PostImage';
   try {
-    message('Uploading, please wait...', 'success');
+    showMessage('Uploading, please wait...', 'info');
     const response = await fetch(url, {
       method: 'POST',
       body: formData,
@@ -87,11 +88,11 @@ async function postData(formData) {
       throw new Error(`Response status: ${response.status}`);
     }
     // Success message
-    message('Image uploaded successfully!', 'success');
+    showMessage('Image uploaded successfully!', 'success');
   } catch (error) {
     console.error(error.message);
     // Display error message
-    message(error.message, 'error');
+    showMessage(error.message, 'error');
   }
 }
 
@@ -99,7 +100,7 @@ function validateImage(file) {
   // Check file size (1MB limit)
   if (file.size > 1 * 1024 * 1024) {
     //alert('File size must be less than 1 MB.');
-    message('File size must be less than 1 MB.', 'error');
+    showMessage('File size must be less than 1 MB.', 'error');
     return false;
   }
 
@@ -107,7 +108,7 @@ function validateImage(file) {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'];
   if (!allowedTypes.includes(file.type)) {
     //alert('Invalid file type. Please upload a JPEG, PNG, TIFF, or BMP.');
-    message(
+    showMessage(
       'Invalid file type. Please upload a JPEG, PNG, TIFF, or BMP.',
       'error'
     );
@@ -123,10 +124,10 @@ function validateImage(file) {
       console.log(`W: ${img.width} H: ${img.height} AS: ${aspectRatio}`);
       if (aspectRatio < 0.9 && aspectRatio > 1.1) {
         // Allow 10% off-square images through.
-        message('Image aspect ratio must  be 1:1', 'error');
+        showMessage('Image aspect ratio must  be 1:1', 'error');
         resolve(false);
       } else if (img.width < 128) {
-        message('Image dimensions must be >= 128x128 pixels.', 'error');
+        showMessage('Image dimensions must be >= 128x128 pixels.', 'error');
         resolve(false);
       } else {
         const predictions = await model.classify(img);
@@ -134,11 +135,14 @@ function validateImage(file) {
         const isSafe = predictions.every(
           (p) =>
             (p.className !== 'Porn' && p.className !== 'Hentai') ||
-            p.probability < 0.5
+            p.probability < 0.6
         );
 
         if (!isSafe) {
-          message('NSFW content detected. Image cannot be uploaded.', 'error');
+          showMessage(
+            'NSFW content detected. Image cannot be uploaded.',
+            'error'
+          );
           resolve(false);
         } else {
           resolve(true); // Image is safe for upload
@@ -148,28 +152,22 @@ function validateImage(file) {
   });
 }
 
-function message(msg, type) {
-  let messageContainer;
+function showMessage(msg, type) {
+  const messageList = document.getElementById('messageList');
 
-  if (type === 'success') {
-    messageContainer = document.getElementById('successMessage');
-  } else if (type === 'error') {
-    messageContainer = document.getElementById('errorMessage');
-  }
+  const messageItem = document.createElement('li');
+  messageItem.classList.add('message-item', type);
+  messageItem.textContent = msg;
 
-  // Maintain message history with a maximum of 4 messages
-  messages.unshift(msg); // Add the new message to the front
+  messageList.prepend(messageItem);
+
+  messages.unshift(msg);
   if (messages.length > 4) {
-    messages.pop(); // Remove the oldest message if limit exceeded
+    messages.pop();
+    messageList.removeChild(messageList.lastChild);
   }
 
-  // Clear current messages and display updated history
-  messageContainer.innerHTML = messages
-    .map((message) => `<div>${message}</div>`)
-    .join('');
-
-  // Clear messages after seconds
   setTimeout(() => {
-    messageContainer.innerHTML = '';
-  }, 30000);
+    messageItem.remove();
+  }, 150000);
 }

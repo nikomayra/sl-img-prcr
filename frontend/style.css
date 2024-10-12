@@ -64,3 +64,28 @@ figcaption {
   text-align: center;
   word-wrap: break-word; /* Handle long titles */
 }
+
+.message {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.message-item {
+  padding: 0px;
+  border-radius: 5px;
+  margin: 3px 0;
+  font-weight: bold;
+}
+
+.success {
+  color: #179a36;
+}
+
+.error {
+  color: #a91927;
+}
+
+.info {
+  color: #1591a7;
+}
