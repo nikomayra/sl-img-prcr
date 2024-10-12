@@ -16,7 +16,9 @@ async function loadGallery() {
   gallery.innerHTML = '';
 
   try {
-    const response = await fetch('http://localhost:7071/api/GetLastGifs');
+    const response = await fetch(
+      'https://slimgprcrapim.azure-api.net/sl-img-prcr/getlastgifs'
+    );
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
     const imageUrls = await response.json();
@@ -76,7 +78,7 @@ document
   });
 
 async function postData(formData) {
-  const url = 'http://localhost:7071/api/PostImage';
+  const url = 'https://slimgprcrapim.azure-api.net/sl-img-prcr/postimage';
   try {
     showMessage('Uploading, please wait...', 'info');
     const response = await fetch(url, {
