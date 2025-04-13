@@ -18,13 +18,20 @@ namespace sl_img_prcr.Functions
         private readonly BlobStorageService _blobStorageService;
         private readonly ImageProcessorService _imageProcessorService;
         private readonly RandomTitleService _randomTitleService;
+        private readonly RateLimitingService _rateLimitingService;
 
-        public ProgramRoutes(ILogger<ProgramRoutes> logger, BlobStorageService blobStorageService, ImageProcessorService imageProcessorService, RandomTitleService randomTitleService)
+        public ProgramRoutes(
+            ILogger<ProgramRoutes> logger, 
+            BlobStorageService blobStorageService, 
+            ImageProcessorService imageProcessorService, 
+            RandomTitleService randomTitleService,
+            RateLimitingService rateLimitingService)
         {
             _logger = logger;
             _blobStorageService = blobStorageService;
             _imageProcessorService = imageProcessorService;
             _randomTitleService = randomTitleService;
+            _rateLimitingService = rateLimitingService;
         }
 
 
@@ -32,6 +39,16 @@ namespace sl_img_prcr.Functions
         public async Task<IActionResult> Run([HttpTrigger(AuthorizationLevel.Anonymous, "post")] HttpRequest req)
         {
             _logger.LogInformation("Processing image upload...");
+
+            // Get client IP for rate limiting
+            string clientIp = GetClientIpAddress(req);
+            
+            // Check rate limit
+            if (!_rateLimitingService.IsClientAllowed(clientIp))
+            {
+                _logger.LogWarning($"Rate limit exceeded for IP: {clientIp}");
+                return new StatusCodeResult(429); // Too Many Requests
+            }
 
             // Check if file exists
             if (req.Form.Files.Count == 0)
@@ -95,6 +112,16 @@ namespace sl_img_prcr.Functions
         [Function("GetLastGifs")]
         public async Task<IActionResult> GetImages([HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequest req)
         {
+            // Get client IP for rate limiting
+            string clientIp = GetClientIpAddress(req);
+            
+            // Check rate limit
+            if (!_rateLimitingService.IsClientAllowed(clientIp))
+            {
+                _logger.LogWarning($"Rate limit exceeded for IP: {clientIp}");
+                return new StatusCodeResult(429); // Too Many Requests
+            }
+            
             var containerClient = _blobStorageService.GetBlobContainerClient("gifs");
             var blobs = containerClient.GetBlobsAsync();
             var blobUrls = new List<string>();
@@ -105,6 +132,27 @@ namespace sl_img_prcr.Functions
             }
             return new OkObjectResult(blobUrls.Take(50));
         }
+        
+        // Helper method to get client IP address
+        private string GetClientIpAddress(HttpRequest req)
+        {
+            // Try to get IP from common headers
+            var clientIp = req.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                          req.Headers["X-Real-IP"].FirstOrDefault();
+                          
+            // If not found in headers, use the connection remote IP
+            if (string.IsNullOrEmpty(clientIp))
+            {
+                clientIp = req.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            }
+            
+            // If X-Forwarded-For contains multiple IPs, take the first one (client IP)
+            if (clientIp?.Contains(",") == true)
+            {
+                clientIp = clientIp.Split(',')[0].Trim();
+            }
+            
+            return clientIp;
+        }
     }
-
 }

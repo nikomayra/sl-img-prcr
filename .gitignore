@@ -34,7 +34,6 @@ bld/
 #wwwroot/
 
 # vs code dir
-.vscode
 
 # MSTest test Results
 [Tt]est[Rr]esult*/
